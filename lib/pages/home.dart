@@ -88,16 +88,22 @@ class _HomePageState extends ConsumerState<HomePage> {
             style: TextStyle(fontSize: 25),
           ),
           SizedBox(
+            height: 10,
+          ),
+          SizedBox(
             height: height * 0.6,
             child: ListView.separated(
               controller: controller,
               separatorBuilder: (context, index) => SizedBox(
-                height: 10,
+                height: 5,
               ),
               itemCount: _homePageData.data?.results?.length ?? 0,
               itemBuilder: (context, index) {
                 PokemonListResult result = _homePageData.data!.results![index];
-                return PokemonListtile(pokemonUrl: result.url!);
+                return PokemonListTile(
+                  pokemonUrl: result.url!,
+                  name: result.name!,
+                );
               },
             ),
           )
