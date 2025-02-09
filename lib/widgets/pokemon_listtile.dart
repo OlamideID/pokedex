@@ -7,7 +7,7 @@ import 'package:poke/providers/pokemon_provider.dart';
 import 'package:skeletonizer/skeletonizer.dart';
 
 class PokemonListTile extends ConsumerWidget {
-  PokemonListTile({
+  const PokemonListTile({
     super.key,
     required this.pokemonUrl,
     required this.name,
@@ -23,8 +23,21 @@ class PokemonListTile extends ConsumerWidget {
 
     return pokemon.when(
       data: (data) => _buildTile(context, data, favPokemons, favoritesNotifier),
-      error: (error, stackTrace) => Center(
-          child: Text('Error: $error', style: TextStyle(color: Colors.red))),
+      error: (error, stackTrace) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: Card(
+          color: Colors.red.shade100,
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Text(
+              'Error loading Pokemon',
+              style: TextStyle(color: Colors.red.shade900),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ),
+      ),
       loading: () => _buildTile(context, null, favPokemons, favoritesNotifier,
           loading: true),
     );
@@ -34,93 +47,164 @@ class PokemonListTile extends ConsumerWidget {
       List<String> favPokemons, Favorites favoritesNotifier,
       {bool loading = false}) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: Skeletonizer(
         enabled: loading,
         child: FadeInUp(
           duration: Duration(milliseconds: 300),
-          child: Card(
-            elevation: 8,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: GestureDetector(
+            onTap: () {
+              if (pokemon != null) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => PokemonDetails(
+                      weight: pokemon.weight!,
+                      abilities: pokemon.abilities!.toList(),
+                      species: pokemon.species!.name.toString(),
+                      image2: pokemon.sprites!.backShiny,
+                      ability: pokemon.species!,
+                      stats: pokemon.stats!.toList(),
+                      id: pokemon.id,
+                      height: pokemon.height!,
+                      moves: pokemon.moves!.length.toString(),
+                      pokemonUrlDetails: pokemonUrl,
+                      image1: pokemon.sprites!.frontShiny,
+                      name: name,
+                    ),
+                  ),
+                );
+              }
+            },
             child: Container(
+              height: 80,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(15),
                 gradient: LinearGradient(
-                  colors: [Colors.black87, Colors.blueGrey.shade900],
+                  colors: [
+                    Colors.indigo.shade900,
+                    Colors.blue.shade900,
+                  ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
-              ),
-              child: ListTile(
-                contentPadding: const EdgeInsets.all(16),
-                trailing: IconButton(
-                  onPressed: () {
-                    if (favPokemons.contains(pokemonUrl)) {
-                      favoritesNotifier.removeFavorite(pokemonUrl);
-                    } else {
-                      favoritesNotifier.addFavorite(pokemonUrl);
-                    }
-                  },
-                  icon: AnimatedSwitcher(
-                    duration: Duration(milliseconds: 300),
-                    transitionBuilder: (child, anim) =>
-                        ScaleTransition(scale: anim, child: child),
-                    child: Icon(
-                      favPokemons.contains(pokemonUrl)
-                          ? Icons.favorite
-                          : Icons.favorite_border,
-                      key: ValueKey(favPokemons.contains(pokemonUrl)),
-                      color: favPokemons.contains(pokemonUrl)
-                          ? Colors.red
-                          : Colors.white,
-                    ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 4,
+                    offset: Offset(0, 2),
                   ),
-                ),
-                leading: pokemon != null
-                    ? Hero(
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(15),
+                child: Row(
+                  children: [
+                    // Pokemon Image
+                    Container(
+                      width: 70,
+                      height: 80,
+                      color: Colors.white10,
+                      child: Hero(
                         tag: pokemonUrl,
-                        child: CircleAvatar(
-                          backgroundImage:
-                              NetworkImage(pokemon.sprites!.frontDefault!),
-                          radius: 35,
-                        ),
-                      )
-                    : CircleAvatar(
-                        radius: 35, backgroundColor: Colors.grey[700]),
-                onTap: () {
-                  if (pokemon != null) {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => PokemonDetails(
-                          weight: pokemon.weight!,
-                          abilities: pokemon.abilities!.toList(),
-                          species: pokemon.species!.name.toString(),
-                          image2: pokemon.sprites!.backShiny,
-                          ability: pokemon.species!,
-                          stats: pokemon.stats!.toList(),
-                          id: pokemon.id,
-                          height: pokemon.height!,
-                          moves: pokemon.moves!.length.toString(),
-                          pokemonUrlDetails: pokemonUrl,
-                          image1: pokemon.sprites!.frontShiny,
-                          name: name,
+                        child: pokemon != null
+                            ? Image.network(
+                                pokemon.sprites!.frontDefault!,
+                                fit: BoxFit.contain,
+                                errorBuilder: (context, error, stackTrace) =>
+                                    Icon(
+                                  Icons.broken_image,
+                                  color: Colors.white24,
+                                ),
+                              )
+                            : Icon(
+                                Icons.catching_pokemon,
+                                size: 30,
+                                color: Colors.white24,
+                              ),
+                      ),
+                    ),
+                    // Pokemon Info
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              pokemon != null
+                                  ? pokemon.name!.toUpperCase()
+                                  : 'Loading...',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                                color: Colors.white,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 2),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.flash_on,
+                                  size: 12,
+                                  color: Colors.amber,
+                                ),
+                                const SizedBox(width: 2),
+                                Flexible(
+                                  child: Text(
+                                    '${pokemon?.moves?.length.toString() ?? 0} Moves',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.white70,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
-                    );
-                  }
-                },
-                title: Text(
-                  pokemon != null ? pokemon.name!.toUpperCase() : 'Loading...',
-                  style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 17,
-                      color: Colors.white),
-                ),
-                subtitle: Text(
-                  '${pokemon?.moves?.length.toString() ?? 0} Moves',
-                  style: TextStyle(fontSize: 14, color: Colors.white70),
+                    ),
+                    // Favorite Button
+                    SizedBox(
+                      width: 36,
+                      child: IconButton(
+                        padding: EdgeInsets.zero,
+                        constraints: BoxConstraints(),
+                        onPressed: () {
+                          if (favPokemons.contains(pokemonUrl)) {
+                            favoritesNotifier.removeFavorite(pokemonUrl);
+                          } else {
+                            favoritesNotifier.addFavorite(pokemonUrl);
+                          }
+                        },
+                        icon: AnimatedSwitcher(
+                          duration: Duration(milliseconds: 300),
+                          transitionBuilder: (child, anim) => ScaleTransition(
+                            scale: anim,
+                            child: child,
+                          ),
+                          child: Icon(
+                            favPokemons.contains(pokemonUrl)
+                                ? Icons.favorite
+                                : Icons.favorite_border,
+                            key: ValueKey(favPokemons.contains(pokemonUrl)),
+                            color: favPokemons.contains(pokemonUrl)
+                                ? Colors.red
+                                : Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
                 ),
               ),
             ),

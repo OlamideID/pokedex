@@ -15,7 +15,6 @@ class PokemonDetails extends ConsumerStatefulWidget {
   final int height;
   final int? id;
   final int weight;
-
   final List<Stats> stats;
   final Ability ability;
   final List<Abilities>? abilities;
@@ -44,12 +43,12 @@ class PokemonDetails extends ConsumerStatefulWidget {
 
 class _PokemonDetailsState extends ConsumerState<PokemonDetails> {
   final List<Color> statColors = [
-    Colors.red,
-    Colors.blue,
-    Colors.green,
-    Colors.orange,
-    Colors.purple,
-    Colors.yellow
+    Colors.red.shade400,
+    Colors.blue.shade400,
+    Colors.green.shade400,
+    Colors.orange.shade400,
+    Colors.purple.shade400,
+    Colors.amber.shade400
   ];
 
   @override
@@ -58,132 +57,239 @@ class _PokemonDetailsState extends ConsumerState<PokemonDetails> {
     final favpokemons = ref.watch(favorites);
 
     return Scaffold(
+      backgroundColor: Colors.blueGrey[50],
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        centerTitle: true,
-        backgroundColor: Colors.blueGrey[800],
+        backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          onPressed: () => Navigator.pop(context),
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-        ),
-        title: Text(
-          widget.name[0].toUpperCase() + widget.name.substring(1).toLowerCase(),
-          style: const TextStyle(
-              fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
+        leading: Container(
+          margin: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.3),
+            shape: BoxShape.circle,
+          ),
+          child: IconButton(
+            onPressed: () => Navigator.pop(context),
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+          ),
         ),
         actions: [
-          IconButton(
-            onPressed: () {
-              if (favpokemons.contains(widget.pokemonUrlDetails)) {
-                favorite.removeFavorite(widget.pokemonUrlDetails);
-              } else {
-                favorite.addFavorite(widget.pokemonUrlDetails);
-              }
-            },
-            icon: Icon(
-              favpokemons.contains(widget.pokemonUrlDetails)
-                  ? Icons.favorite
-                  : Icons.favorite_border,
-              color: favpokemons.contains(widget.pokemonUrlDetails)
-                  ? Colors.red
-                  : Colors.white,
+          Container(
+            margin: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.3),
+              shape: BoxShape.circle,
+            ),
+            child: IconButton(
+              onPressed: () {
+                if (favpokemons.contains(widget.pokemonUrlDetails)) {
+                  favorite.removeFavorite(widget.pokemonUrlDetails);
+                } else {
+                  favorite.addFavorite(widget.pokemonUrlDetails);
+                }
+              },
+              icon: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                transitionBuilder: (child, anim) => ScaleTransition(
+                  scale: anim,
+                  child: child,
+                ),
+                child: Icon(
+                  favpokemons.contains(widget.pokemonUrlDetails)
+                      ? Icons.favorite
+                      : Icons.favorite_border,
+                  key: ValueKey(favpokemons.contains(widget.pokemonUrlDetails)),
+                  color: favpokemons.contains(widget.pokemonUrlDetails)
+                      ? Colors.red
+                      : Colors.white,
+                ),
+              ),
             ),
           ),
+          const SizedBox(width: 8),
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Hero(
-              tag: widget.heroTag ?? widget.name,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (widget.image1 != null)
-                    Expanded(
-                      child: Image.network(
-                        widget.image1!,
-                        height: 250,
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                  if (widget.image2 != null) ...[
-                    const SizedBox(width: 10), // Reduce spacing
-                    Expanded(
-                      child: Image.network(
-                        widget.image2!,
-                        height: 250,
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                  ],
-                ],
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.blue.shade800, Colors.indigo.shade900],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
               ),
-            ),
-            const SizedBox(height: 20),
-            Card(
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16.0)),
-              elevation: 5,
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
+              child: SafeArea(
+                bottom: false,
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text("Basic Information",
-                        style: TextStyle(
-                          fontSize: 20,
-                        )),
+                    const SizedBox(height: 8),
+                    Text(
+                      '#${widget.id?.toString().padLeft(3, '0') ?? "???"}',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.7),
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      widget.name[0].toUpperCase() +
+                          widget.name.substring(1).toLowerCase(),
+                      style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
                     const SizedBox(height: 10),
-                    _buildInfoRow(
-                        'Name',
-                        widget.name[0].toUpperCase() +
-                            widget.name.substring(1).toLowerCase()),
-                    _buildInfoRow("Height", "${widget.height}"),
-                    _buildInfoRow('Weight', widget.weight.toString()),
-                    _buildInfoRow("Moves", widget.moves),
-                    _buildInfoRow("ID", widget.id?.toString() ?? "N/A"),
-                    _buildInfoRow(
-                        'Species',
-                        widget.species[0].toUpperCase() +
-                            widget.species.substring(1).toLowerCase()),
-                    _buildInfoRow("Ability", widget.ability.name.toString()),
+                    Hero(
+                      tag: widget.heroTag ?? widget.name,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (widget.image1 != null)
+                            Expanded(
+                              child: Image.network(
+                                widget.image1!,
+                                height: 180,
+                                fit: BoxFit.contain,
+                              ),
+                            ),
+                          if (widget.image2 != null) ...[
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Image.network(
+                                widget.image2!,
+                                height: 180,
+                                fit: BoxFit.contain,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    // const SizedBox(height: 20),
                   ],
                 ),
               ),
             ),
-            const SizedBox(height: 20),
-            Text("Stats",
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                )),
-            const SizedBox(height: 10),
-            _buildHorizontalStatsLines(),
-            const SizedBox(height: 20),
-            Text("Abilities",
-                style:
-                    const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 10),
-            Column(
-              children: widget.abilities!
-                  .map((abil) => Card(
-                        elevation: 2,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                        child: ListTile(
-                          title: Text(
-                            abil.ability!.name!,
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
+            Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(30),
+                  topRight: Radius.circular(30),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(15),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        _buildInfoCard(
+                          'Height',
+                          '${widget.height / 10} m',
+                          Icons.height,
                         ),
-                      ))
-                  .toList(),
+                        _buildInfoCard(
+                          'Weight',
+                          '${widget.weight / 10} kg',
+                          Icons.monitor_weight_outlined,
+                        ),
+                        _buildInfoCard(
+                          'Moves',
+                          widget.moves,
+                          Icons.flash_on,
+                        ),
+                      ],
+                    ),
+                  ),
+                  _buildSection(
+                    'Stats',
+                    _buildHorizontalStatsLines(),
+                  ),
+                  _buildSection(
+                    'Abilities',
+                    Column(
+                      children: widget.abilities!.map((abil) {
+                        return Card(
+                          margin: const EdgeInsets.symmetric(vertical: 4),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: ListTile(
+                            leading: const Icon(Icons.auto_awesome),
+                            title: Text(
+                              abil.ability!.name!,
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                ],
+              ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildSection(String title, Widget content) {
+    return Padding(
+      padding: const EdgeInsets.all(20.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 16),
+          content,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoCard(String label, String value, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: Colors.blue[700], size: 24),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey[600],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -194,65 +300,66 @@ class _PokemonDetailsState extends ConsumerState<PokemonDetails> {
         int index = entry.key;
         Stats stat = entry.value;
         double widthFactor = stat.baseStat! / 100;
+        // String percentage = (widthFactor * 100).toStringAsFixed(1);
+
         return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4.0),
-          child: Row(
+          padding: const EdgeInsets.symmetric(vertical: 8.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SizedBox(
-                width: 100,
-                child: Text(stat.stat!.name!,
-                    style: const TextStyle(fontWeight: FontWeight.bold)),
-              ),
-              Expanded(
-                child: Tooltip(
-                  message: "${(widthFactor * 100).toStringAsFixed(1)}%",
-                  child: Stack(
-                    children: [
-                      Container(
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: Colors.grey[300],
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ),
-                      FractionallySizedBox(
-                        widthFactor: widthFactor.clamp(0.0, 1.0),
-                        child: Container(
-                          height: 4,
-                          decoration: BoxDecoration(
-                            color: statColors[index % statColors.length],
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                        ),
-                      ),
-                    ],
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${stat.stat!.name![0].toUpperCase()}${stat.stat!.name!.substring(1)}',
+                      style: const TextStyle(fontWeight: FontWeight.w500),
+                    ),
                   ),
-                ),
+                  Text(
+                    '${stat.baseStat}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 10),
-              Text(stat.baseStat.toString(),
-                  style: const TextStyle(fontSize: 14)),
+              const SizedBox(height: 8),
+              Stack(
+                children: [
+                  // Background bar
+                  Container(
+                    height: 8, // Slightly taller for better visibility
+                    decoration: BoxDecoration(
+                      color: Colors.grey[200],
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                  ),
+                  // Progress bar
+                  FractionallySizedBox(
+                    widthFactor: widthFactor.clamp(0.0, 1.0),
+                    child: Container(
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: statColors[index % statColors.length],
+                        borderRadius: BorderRadius.circular(6),
+                        boxShadow: [
+                          BoxShadow(
+                            color: statColors[index % statColors.length]
+                                .withOpacity(0.3),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         );
       }).toList(),
-    );
-  }
-
-  Widget _buildInfoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
-              Text(value, style: const TextStyle()),
-            ],
-          ),
-        ],
-      ),
     );
   }
 }

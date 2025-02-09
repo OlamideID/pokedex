@@ -80,8 +80,6 @@ class _HomePageState extends ConsumerState<HomePage> {
     return SizedBox(
       width: width,
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'All Pokemons',
