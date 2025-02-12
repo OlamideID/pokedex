@@ -216,7 +216,7 @@ class _PokemonDetailsState extends ConsumerState<PokemonDetails> {
                   _buildSection(
                     'Abilities',
                     Column(
-                      children: widget.abilities!.map((abil) {
+                      children: (widget.abilities ?? []).map((abil) {
                         return Card(
                           margin: const EdgeInsets.symmetric(vertical: 4),
                           shape: RoundedRectangleBorder(
@@ -225,7 +225,7 @@ class _PokemonDetailsState extends ConsumerState<PokemonDetails> {
                           child: ListTile(
                             leading: const Icon(Icons.auto_awesome),
                             title: Text(
-                              abil.ability!.name!,
+                              abil.ability?.name ?? 'Unknown',
                               style:
                                   const TextStyle(fontWeight: FontWeight.bold),
                             ),
@@ -299,8 +299,10 @@ class _PokemonDetailsState extends ConsumerState<PokemonDetails> {
       children: widget.stats.asMap().entries.map((entry) {
         int index = entry.key;
         Stats stat = entry.value;
-        double widthFactor = stat.baseStat! / 100;
-        // String percentage = (widthFactor * 100).toStringAsFixed(1);
+
+        // Safe access to baseStat with default value
+        final baseStat = stat.baseStat ?? 0;
+        double widthFactor = baseStat / 100;
 
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -312,12 +314,12 @@ class _PokemonDetailsState extends ConsumerState<PokemonDetails> {
                 children: [
                   Expanded(
                     child: Text(
-                      '${stat.stat!.name![0].toUpperCase()}${stat.stat!.name!.substring(1)}',
+                      _capitalizeStatName(stat.stat?.name ?? 'Unknown'),
                       style: const TextStyle(fontWeight: FontWeight.w500),
                     ),
                   ),
                   Text(
-                    '${stat.baseStat}',
+                    baseStat.toString(),
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                     ),
@@ -329,7 +331,7 @@ class _PokemonDetailsState extends ConsumerState<PokemonDetails> {
                 children: [
                   // Background bar
                   Container(
-                    height: 8, // Slightly taller for better visibility
+                    height: 8,
                     decoration: BoxDecoration(
                       color: Colors.grey[200],
                       borderRadius: BorderRadius.circular(6),
@@ -361,5 +363,10 @@ class _PokemonDetailsState extends ConsumerState<PokemonDetails> {
         );
       }).toList(),
     );
+  }
+
+  String _capitalizeStatName(String name) {
+    if (name.isEmpty) return name;
+    return '${name[0].toUpperCase()}${name.substring(1)}';
   }
 }
