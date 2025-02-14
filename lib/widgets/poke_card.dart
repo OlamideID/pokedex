@@ -12,11 +12,7 @@ class PokeCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // final height = MediaQuery.of(context).size.height;
-    // final width = MediaQuery.of(context).size.width;
-
     final pokemon = ref.watch(pokemonData(pokemonUrl));
-
     return pokemon.when(
       data: (data) =>
           data != null ? _buildCard(context, data) : _buildLoadingCard(),
@@ -39,20 +35,18 @@ class PokeCard extends ConsumerWidget {
           context,
           MaterialPageRoute(
             builder: (context) => PokemonDetails(
-              weight: pokemon.weight ?? 0,
-              height: pokemon.height ?? 0,
-              species: pokemon.species?.name ?? 'Unknown',
-              moves: (pokemon.moves?.length ?? 0).toString(),
+              weight: pokemon.weight!,
+              height: pokemon.height!,
+              species: pokemon.species!.name!,
+              moves: pokemon.moves!.length.toString(),
               name: name,
-              abilities: pokemon.abilities ?? [],
-              image1: pokemon.sprites?.frontShiny ?? '',
-              image2: pokemon.sprites?.backShiny ?? '',
-              id: pokemon.id ?? 0,
-              ability: (pokemon.abilities?.isNotEmpty ?? false)
-                  ? pokemon.abilities!.first.ability!
-                  : Ability(name: 'Unknown', url: ''),
+              abilities: pokemon.abilities,
+              image1: pokemon.sprites!.frontShiny,
+              image2: pokemon.sprites!.backShiny,
+              id: pokemon.id,
+              ability: pokemon.abilities!.first.ability!,
               pokemonUrlDetails: pokemonUrl,
-              stats: pokemon.stats ?? [],
+              stats: pokemon.stats!,
             ),
           ),
         );
@@ -60,81 +54,52 @@ class PokeCard extends ConsumerWidget {
       child: Card(
         elevation: 3,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(8),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Pokémon Image
-              Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.grey[200],
-                ),
-                padding: const EdgeInsets.all(8),
-                child: pokemon.sprites?.frontDefault != null
-                    ? Image.network(
-                        pokemon.sprites!.frontDefault!,
-                        height: 60,
-                        width: 60,
-                        fit: BoxFit.contain,
-                      )
-                    : const Icon(Icons.image_not_supported,
-                        size: 60, color: Colors.grey),
-              ),
-              const SizedBox(height: 6),
-
-              // Pokémon Name
-              Text(
-                pokemon.name?.toUpperCase() ?? 'Unknown',
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-
-              // Pokémon ID
-              Text(
-                '#${pokemon.id ?? "N/A"}',
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey,
-                ),
-              ),
-
-              // Height & Weight with Icons
-              Row(
+        child: Stack(
+          children: [
+            // Favorite Button at Top Right
+            Positioned(
+              top: 8,
+              right: 8,
+              child: PokemonFavoriteButton(pokemonUrl: pokemonUrl),
+            ),
+            // Main Content
+            Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  _buildStatIcon(
-                      Icons.height, '${(pokemon.height ?? 0) / 10}m'),
-                  const SizedBox(width: 6),
-                  _buildStatIcon(
-                      Icons.fitness_center, '${(pokemon.weight ?? 0) / 10}kg'),
+                  // Pokémon Image
+                  Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.grey[200],
+                    ),
+                    padding: const EdgeInsets.all(8),
+                    child: pokemon.sprites?.frontDefault != null
+                        ? Image.network(
+                            pokemon.sprites!.frontDefault!,
+                            height: 80,
+                            width: 80,
+                            fit: BoxFit.contain,
+                          )
+                        : const Icon(Icons.image_not_supported,
+                            size: 80, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 8),
+                  // Pokémon Name
+                  Text(
+                    pokemon.name![0].toUpperCase() + pokemon.name!.substring(1),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ],
               ),
-
-              // Abilities (Stacked)
-              if (pokemon.abilities?.isNotEmpty == true) ...[
-                const SizedBox(height: 4),
-                Column(
-                  children: pokemon.abilities!.map((ability) {
-                    return Text(
-                      ability.ability!.name!,
-                      style: const TextStyle(
-                          fontSize: 10, fontWeight: FontWeight.w500),
-                    );
-                  }).toList(),
-                ),
-              ],
-
-              // Favorite Button
-              const SizedBox(height: 4),
-              PokemonFavoriteButton(pokemonUrl: pokemonUrl),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -148,20 +113,6 @@ class PokeCard extends ConsumerWidget {
         width: 40,
         child: CircularProgressIndicator(),
       ),
-    );
-  }
-
-  // Small stat icon with text
-  Widget _buildStatIcon(IconData icon, String text) {
-    return Row(
-      children: [
-        Icon(icon, size: 12, color: Colors.grey),
-        const SizedBox(width: 2),
-        Text(
-          text,
-          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w500),
-        ),
-      ],
     );
   }
 }

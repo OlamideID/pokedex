@@ -15,7 +15,7 @@ class PokemonFavoriteButton extends ConsumerWidget {
 
     return IconButton(
       icon: Icon(
-        isFavorite ? Icons.favorite : Icons.favorite_border,
+        isFavorite ? Icons.favorite_outlined : Icons.favorite_border,
         color: Colors.red,
       ),
       onPressed: () {

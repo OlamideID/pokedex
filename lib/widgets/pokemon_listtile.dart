@@ -44,180 +44,177 @@ class PokemonListTile extends ConsumerWidget {
     );
   }
 
-  Widget _buildTile(BuildContext context, Pokemon? pokemon,
-      List<String> favPokemons, Favorites favoritesNotifier,
-      {bool loading = false}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: Skeletonizer(
-        enabled: loading,
-        child: FadeInUp(
-          duration: Duration(milliseconds: 300),
-          child: GestureDetector(
-            onTap: () {
-              if (pokemon != null) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => PokemonDetails(
-                      weight: pokemon.weight!,
-                      abilities: pokemon.abilities!.toList(),
-                      species: pokemon.species!.name.toString(),
-                      image2: pokemon.sprites!.backShiny,
-                      ability: pokemon.species!,
-                      stats: pokemon.stats!.toList(),
-                      id: pokemon.id,
-                      height: pokemon.height!,
-                      moves: pokemon.moves!.length.toString(),
-                      pokemonUrlDetails: pokemonUrl,
-                      image1: pokemon.sprites!.frontShiny,
-                      name: name,
-                    ),
+Widget _buildTile(BuildContext context, Pokemon? pokemon,
+    List<String> favPokemons, Favorites favoritesNotifier,
+    {bool loading = false}) {
+  return Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+    child: Skeletonizer(
+      enabled: loading,
+      child: FadeInUp(
+        duration: const Duration(milliseconds: 300),
+        child: GestureDetector(
+          onTap: () {
+            if (pokemon != null) {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => PokemonDetails(
+                    weight: pokemon.weight ?? 0, // Provide default value
+                    abilities: pokemon.abilities?.toList() ?? [], // Default to empty list
+                    species: pokemon.species?.name ?? 'Unknown', // Default to "Unknown"
+                    image2: pokemon.sprites?.backShiny ?? '', // Default to empty string
+                    ability: pokemon.species ?? Ability(name: 'Unknown'), // Default to placeholder
+                    stats: pokemon.stats?.toList() ?? [], // Default to empty list
+                    id: pokemon.id ?? 0, // Default to 0
+                    height: pokemon.height ?? 0, // Default to 0
+                    moves: (pokemon.moves?.length ?? 0).toString(), // Default to "0"
+                    pokemonUrlDetails: pokemonUrl,
+                    image1: pokemon.sprites?.frontShiny ?? '', // Default to empty string
+                    name: name, // Default to "Unknown"
                   ),
-                );
-              }
-            },
-            child: SizedBox(
-              width: double.infinity, // Ensures full width
-              child: Container(
-                height: 80,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(15),
-                  gradient: LinearGradient(
-                    colors: [
-                      Colors.indigo.shade900,
-                      Colors.blue.shade900,
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 4,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
                 ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(15),
-                  child: Row(
-                    children: [
-                      // Pokemon Image
-                      Container(
-                        width: 70,
-                        height: 80,
-                        color: Colors.white10,
-                        child: Hero(
-                          tag: pokemonUrl,
-                          child: pokemon != null
-                              ? Image.network(
-                                  pokemon.sprites!.frontDefault!,
-                                  fit: BoxFit.contain,
-                                  errorBuilder: (context, error, stackTrace) =>
-                                      Icon(
-                                    Icons.broken_image,
-                                    color: Colors.white24,
-                                  ),
-                                )
-                              : Icon(
-                                  Icons.catching_pokemon,
-                                  size: 30,
+              );
+            }
+          },
+          child: SizedBox(
+            width: double.infinity,
+            child: Container(
+              height: 80,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(15),
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.indigo.shade900,
+                    Colors.blue.shade900,
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(15),
+                child: Row(
+                  children: [
+                    // Pokemon Image
+                    Container(
+                      width: 70,
+                      height: 80,
+                      color: Colors.white10,
+                      child: Hero(
+                        tag: pokemonUrl,
+                        child: pokemon != null && pokemon.sprites != null
+                            ? Image.network(
+                                pokemon.sprites!.frontDefault ?? '', // Default to empty string
+                                fit: BoxFit.contain,
+                                errorBuilder: (context, error, stackTrace) =>
+                                    const Icon(
+                                  Icons.broken_image,
                                   color: Colors.white24,
                                 ),
-                        ),
+                              )
+                            : const Icon(
+                                Icons.catching_pokemon,
+                                size: 30,
+                                color: Colors.white24,
+                              ),
                       ),
-                      // Pokemon Info
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                pokemon != null
-                                    ? pokemon.name!.toUpperCase()
-                                    : 'Loading...',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 14,
-                                  color: Colors.white,
+                    ),
+                    // Pokemon Info
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              pokemon?.name?.toUpperCase() ?? 'Loading...', // Handle null name
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                                color: Colors.white,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 2),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.flash_on,
+                                  size: 12,
+                                  color: Colors.amber,
                                 ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 2),
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.flash_on,
-                                    size: 12,
-                                    color: Colors.amber,
-                                  ),
-                                  const SizedBox(width: 2),
-                                  Flexible(
-                                    child: Text(
-                                      '${pokemon?.moves?.length.toString() ?? 0} Moves',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.white70,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
+                                const SizedBox(width: 2),
+                                Flexible(
+                                  child: Text(
+                                    '${pokemon?.moves?.length ?? 0} Moves', // Handle null moves
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.white70,
                                     ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                ],
-                              ),
-                            ],
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    // Favorite Button
+                    SizedBox(
+                      width: 36,
+                      child: IconButton(
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        onPressed: () {
+                          if (favPokemons.contains(pokemonUrl)) {
+                            favoritesNotifier.removeFavorite(pokemonUrl);
+                          } else {
+                            favoritesNotifier.addFavorite(pokemonUrl);
+                          }
+                        },
+                        icon: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 300),
+                          transitionBuilder: (child, anim) => ScaleTransition(
+                            scale: anim,
+                            child: child,
+                          ),
+                          child: Icon(
+                            favPokemons.contains(pokemonUrl)
+                                ? Icons.favorite
+                                : Icons.favorite_border,
+                            key: ValueKey(favPokemons.contains(pokemonUrl)),
+                            color: favPokemons.contains(pokemonUrl)
+                                ? Colors.red
+                                : Colors.white,
+                            size: 20,
                           ),
                         ),
                       ),
-                      // Favorite Button
-                      SizedBox(
-                        width: 36,
-                        child: IconButton(
-                          padding: EdgeInsets.zero,
-                          constraints: BoxConstraints(),
-                          onPressed: () {
-                            if (favPokemons.contains(pokemonUrl)) {
-                              favoritesNotifier.removeFavorite(pokemonUrl);
-                            } else {
-                              favoritesNotifier.addFavorite(pokemonUrl);
-                            }
-                          },
-                          icon: AnimatedSwitcher(
-                            duration: Duration(milliseconds: 300),
-                            transitionBuilder: (child, anim) => ScaleTransition(
-                              scale: anim,
-                              child: child,
-                            ),
-                            child: Icon(
-                              favPokemons.contains(pokemonUrl)
-                                  ? Icons.favorite
-                                  : Icons.favorite_border,
-                              key: ValueKey(favPokemons.contains(pokemonUrl)),
-                              color: favPokemons.contains(pokemonUrl)
-                                  ? Colors.red
-                                  : Colors.white,
-                              size: 20,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
                 ),
               ),
             ),
           ),
         ),
       ),
-    );
-  }
-}
+    ),
+  );
+}}
 
 // ignore: must_be_immutable
 // class PokemonListtile extends ConsumerWidget {

@@ -53,6 +53,7 @@ class _PokemonDetailsState extends ConsumerState<PokemonDetails> {
 
   @override
   Widget build(BuildContext context) {
+    print(widget.pokemonUrlDetails);
     final favorite = ref.watch(favorites.notifier);
     final favpokemons = ref.watch(favorites);
 

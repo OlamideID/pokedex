@@ -8,6 +8,7 @@ import 'package:poke/services/http_service.dart';
 class HomePageProvider extends StateNotifier<HomePageData> {
   final GetIt _getit = GetIt.instance;
   late HttpService _http;
+  bool _isLoading = false; // Prevents duplicate API calls
 
   HomePageProvider(super._state) {
     _http = _getit.get<HttpService>();
@@ -15,26 +16,33 @@ class HomePageProvider extends StateNotifier<HomePageData> {
   }
 
   Future<void> loaddata() async {
+    if (_isLoading) return;
+    _isLoading = true;
+
     try {
-      if (state.data == null) {
-        Response? response = await _http
-            .get('https://pokeapi.co/api/v2/pokemon?limit=20&offset=0');
-        if (response != null) {
-          state = state.copyWith(data: PokemonListData.fromJson(response.data));
-        }
-      } else if (state.data!.next != null) {
-        Response? response = await _http.get(state.data!.next!);
-        if (response != null) {
-          PokemonListData data = PokemonListData.fromJson(response.data);
-          state = state.copyWith(
-            data: state.data!.copyWith(
-                results: [...?state.data!.results, ...?data.results],
-                next: data.next),
-          );
-        }
+      Response? response = await _http.get(state.data?.next ??
+          'https://pokeapi.co/api/v2/pokemon?limit=200&offset=0');
+
+      if (response != null) {
+        PokemonListData newData = PokemonListData.fromJson(response.data);
+        state = state.copyWith(
+          data: state.data == null
+              ? newData
+              : state.data!.copyWith(
+                  results: [...?state.data!.results, ...?newData.results],
+                  next: newData.next),
+        );
       }
     } catch (e) {
       print("Error loading data: $e");
+    }
+
+    _isLoading = false;
+  }
+
+  Future<void> loadMore() async {
+    if (state.data?.next != null) {
+      await loaddata(); // Calls the same function to fetch more data
     }
   }
 }
