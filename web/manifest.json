@@ -1,11 +1,11 @@
 {
-    "name": "poke",
-    "short_name": "poke",
+    "name": "OlaPokédex",
+    "short_name": " OlaPoké",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "All things Pokémon.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
