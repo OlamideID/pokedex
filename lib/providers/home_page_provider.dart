@@ -21,7 +21,7 @@ class HomePageProvider extends StateNotifier<HomePageData> {
 
     try {
       Response? response = await _http.get(state.data?.next ??
-          'https://pokeapi.co/api/v2/pokemon?limit=200&offset=0');
+          'https://pokeapi.co/api/v2/pokemon?limit=20&offset=0');
 
       if (response != null) {
         PokemonListData newData = PokemonListData.fromJson(response.data);
