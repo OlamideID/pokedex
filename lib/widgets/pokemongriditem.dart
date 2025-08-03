@@ -24,11 +24,14 @@ class PokemonGridItem extends StatelessWidget {
           color: Colors.white.withOpacity(0.2),
         ),
       ),
-      child: PokemonListTile(
-        onTap: onTap,
-        controller: searchController,
-        pokemonUrl: pokemon.url!,
-        name: pokemon.name!,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: 300, maxWidth: 300),
+        child: PokemonListTile(
+          onTap: onTap,
+          controller: searchController,
+          pokemonUrl: pokemon.url!,
+          name: pokemon.name!,
+        ),
       ),
     );
   }

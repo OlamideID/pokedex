@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:poke/models/pokemon.dart';
 import 'package:poke/providers/pokemon_provider.dart';
 
@@ -77,16 +78,37 @@ class _PokemonDetailsState extends ConsumerState<PokemonDetails>
         elevation: 0,
         leading: IconButton(
           icon: Icon(Icons.arrow_back_ios_new, color: secondaryColor),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => context.pop(),
         ),
         actions: [
-          GestureDetector(
+          InkWell(
+            customBorder: CircleBorder(),
             onTap: () {
               _controller.forward(from: 0.0);
-              if (favpokemons.contains(widget.pokemonUrlDetails)) {
+              final isFavorite = favpokemons.contains(widget.pokemonUrlDetails);
+
+              if (isFavorite) {
                 favorite.removeFavorite(widget.pokemonUrlDetails);
+                ScaffoldMessenger.of(context).clearSnackBars();
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    behavior: SnackBarBehavior.floating,
+                    content:
+                        Text('${widget.name} has been removed from favorites'),
+                    backgroundColor: Colors.redAccent,
+                  ),
+                );
               } else {
                 favorite.addFavorite(widget.pokemonUrlDetails);
+                ScaffoldMessenger.of(context).clearSnackBars();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    behavior: SnackBarBehavior.floating,
+                    content: Text('${widget.name} has been added to favorites'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
               }
             },
             child: AnimatedBuilder(

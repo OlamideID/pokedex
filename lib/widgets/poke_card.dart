@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:poke/models/page_data.dart';
 import 'package:poke/models/pokemon.dart';
-import 'package:poke/pages/details.dart';
 import 'package:poke/providers/pokemon_provider.dart';
 import 'package:poke/widgets/favorites_button.dart';
-
 
 class FavoriteCard extends StatelessWidget {
   final String url;
   final HomePageData homePageData;
 
-  const FavoriteCard({super.key, 
+  const FavoriteCard({
+    super.key,
     required this.url,
     required this.homePageData,
   });
@@ -43,7 +43,6 @@ class FavoriteCard extends StatelessWidget {
   }
 }
 
-
 class PokeCard extends ConsumerWidget {
   const PokeCard({super.key, required this.pokemonUrl, required this.name});
   final String pokemonUrl;
@@ -70,24 +69,24 @@ class PokeCard extends ConsumerWidget {
           );
           return;
         }
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => PokemonDetails(
-              weight: pokemon.weight!,
-              height: pokemon.height!,
-              species: pokemon.species!.name!,
-              moves: pokemon.moves!.length.toString(),
-              name: name,
-              abilities: pokemon.abilities,
-              image1: pokemon.sprites!.frontShiny,
-              image2: pokemon.sprites!.backShiny,
-              id: pokemon.id,
-              ability: pokemon.abilities!.first.ability!,
-              pokemonUrlDetails: pokemonUrl,
-              stats: pokemon.stats!,
-            ),
-          ),
+
+        context.goNamed(
+          'pokemon-details',
+          pathParameters: {'name': pokemon.name ?? 'unknown'},
+          extra: {
+            'id': pokemon.id,
+            'name': pokemon.name,
+            'height': pokemon.height,
+            'weight': pokemon.weight,
+            'abilities': pokemon.abilities,
+            'ability': pokemon.abilities?.first.ability,
+            'image1': pokemon.sprites?.frontShiny ?? '',
+            'image2': pokemon.sprites?.backShiny ?? '',
+            'stats': pokemon.stats,
+            'moves': pokemon.moves?.length.toString() ?? '',
+            'species': pokemon.species?.name ?? 'Unknown',
+            'pokemonUrlDetails': pokemonUrl,
+          },
         );
       },
       child: Card(

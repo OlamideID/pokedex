@@ -35,7 +35,6 @@ class Favorites extends StateNotifier<List<String>> {
       state = data;
     } else {
       state = [];
-      // _favoriteList.save(favoritekey, state);
     }
   }
 

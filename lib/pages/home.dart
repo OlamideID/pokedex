@@ -212,7 +212,11 @@ class _HomePageState extends ConsumerState<HomePage> {
           padding: const EdgeInsets.symmetric(horizontal: 16),
           sliver: SliverGrid(
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: MediaQuery.of(context).size.width > 600 ? 3 : 2,
+              crossAxisCount: MediaQuery.of(context).size.width > 800
+                  ? 4
+                  : MediaQuery.of(context).size.width > 650
+                      ? 3
+                      : 2,
               childAspectRatio: 0.7,
               crossAxisSpacing: 10,
               mainAxisSpacing: 10,

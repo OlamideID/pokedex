@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 
 class HttpService {
   HttpService();
@@ -9,7 +10,9 @@ class HttpService {
       Response? response = await _dio.get(path);
       return response;
     } catch (e) {
-      print('Error: $e');
+      if (kDebugMode) {
+        print('Error: $e');
+      }
     }
     return null;
   }
