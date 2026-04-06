@@ -72,18 +72,21 @@ class Pokemon {
   Ability? species;
   Sprites? sprites;
   List<Stats>? stats;
+  List<PokemonTypes>? types;
   int? weight;
 
-  Pokemon(
-      {this.abilities,
-      this.height,
-      this.id,
-      this.moves,
-      this.name,
-      this.species,
-      this.sprites,
-      this.stats,
-      this.weight});
+  Pokemon({
+    this.abilities,
+    this.height,
+    this.id,
+    this.moves,
+    this.name,
+    this.species,
+    this.sprites,
+    this.stats,
+    this.types,
+    this.weight,
+  });
 
   Pokemon.fromJson(Map<String, dynamic> json) {
     if (json['abilities'] != null) {
@@ -111,6 +114,12 @@ class Pokemon {
         stats!.add(Stats.fromJson(v));
       });
     }
+    if (json['types'] != null) {
+      types = <PokemonTypes>[];
+      json['types'].forEach((v) {
+        types!.add(PokemonTypes.fromJson(v));
+      });
+    }
     weight = json['weight'];
   }
 
@@ -119,16 +128,12 @@ class Pokemon {
     if (abilities != null) {
       data['abilities'] = abilities!.map((v) => v.toJson()).toList();
     }
-
     data['height'] = height;
-
     data['id'] = id;
-
     if (moves != null) {
       data['moves'] = moves!.map((v) => v.toJson()).toList();
     }
     data['name'] = name;
-
     if (species != null) {
       data['species'] = species!.toJson();
     }
@@ -137,6 +142,9 @@ class Pokemon {
     }
     if (stats != null) {
       data['stats'] = stats!.map((v) => v.toJson()).toList();
+    }
+    if (types != null) {
+      data['types'] = types!.map((v) => v.toJson()).toList();
     }
     data['weight'] = weight;
     return data;
@@ -270,6 +278,27 @@ class Stats {
     data['effort'] = effort;
     if (stat != null) {
       data['stat'] = stat!.toJson();
+    }
+    return data;
+  }
+}
+
+class PokemonTypes {
+  int? slot;
+  Ability? type;
+
+  PokemonTypes({this.slot, this.type});
+
+  PokemonTypes.fromJson(Map<String, dynamic> json) {
+    slot = json['slot'];
+    type = json['type'] != null ? Ability.fromJson(json['type']) : null;
+  }
+
+  Map<String, dynamic> toJson() {
+    final Map<String, dynamic> data = <String, dynamic>{};
+    data['slot'] = slot;
+    if (type != null) {
+      data['type'] = type!.toJson();
     }
     return data;
   }
