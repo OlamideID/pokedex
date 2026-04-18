@@ -10,6 +10,7 @@ import 'package:poke/providers/pokemon_provider.dart';
 import 'package:poke/providers/searchprov.dart';
 import 'package:poke/widgets/pokemongriditem.dart';
 import 'package:poke/widgets/searchbar.dart';
+import 'package:poke/widgets/shimmer_scope.dart';
 import 'package:poke/widgets/types_tab.dart';
 
 class HomePage extends ConsumerStatefulWidget {
@@ -51,7 +52,13 @@ class _HomePageState extends ConsumerState<HomePage> {
   void _setupScrollController() {
     _scrollController.addListener(() {
       _handleInfiniteScroll();
-      _handleScrollToTopButton();
+      // FIX: Only write to the ValueNotifier when the value actually changes.
+      // Previously this wrote on every scroll event → triggered ValueListenableBuilder
+      // rebuild on every pixel of scroll even when the button state didn't change.
+      final shouldShow = _scrollController.offset > _scrollToTopThreshold;
+      if (_showScrollToTop.value != shouldShow) {
+        _showScrollToTop.value = shouldShow;
+      }
     });
   }
 
@@ -66,9 +73,14 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   Future<void> _handleInfiniteScroll() async {
     if (!_shouldLoadMore()) return;
+    // FIX: Set flag synchronously before any await so rapid scroll events
+    // can't slip past the guard during the async gap.
     _isLoadingMore.value = true;
-    await ref.read(pokemonSearchProvider.notifier).loadMore();
-    _isLoadingMore.value = false;
+    try {
+      await ref.read(pokemonSearchProvider.notifier).loadMore();
+    } finally {
+      _isLoadingMore.value = false;
+    }
   }
 
   bool _shouldLoadMore() {
@@ -76,10 +88,6 @@ class _HomePageState extends ConsumerState<HomePage> {
             _scrollController.position.maxScrollExtent * _scrollThreshold &&
         !_scrollController.position.outOfRange &&
         !_isLoadingMore.value;
-  }
-
-  void _handleScrollToTopButton() {
-    _showScrollToTop.value = _scrollController.offset > _scrollToTopThreshold;
   }
 
   void _scrollToTop() {
@@ -178,19 +186,24 @@ class _HomePageState extends ConsumerState<HomePage> {
             }).toList(),
           ),
         ),
-        // FIX: Use IndexedStack to preserve tab state and avoid rebuilding
-        // tabs from scratch on every switch.
         body: (context, controller) => IndexedStack(
           index: _selectedTab,
           children: [
-            _PokedexTab(
-              scrollController: _scrollController,
-              searchController: _searchController,
-              isLoadingMore: _isLoadingMore,
-              onClearSearch: _clearSearch,
+            // FIX: ShimmerScope wraps the entire Pokedex tab so all loading
+            // tiles share a single AnimationController ticker.
+            ShimmerScope(
+              child: _PokedexTab(
+                scrollController: _scrollController,
+                searchController: _searchController,
+                isLoadingMore: _isLoadingMore,
+                onClearSearch: _clearSearch,
+              ),
             ),
             const TypesTab(),
-            _FavoritesTab(homePageProv: homePageProv),
+            // FIX: ShimmerScope for the favorites grid too.
+            ShimmerScope(
+              child: _FavoritesTab(homePageProv: homePageProv),
+            ),
           ],
         ),
       ),
@@ -221,13 +234,15 @@ class _PokedexTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return CustomScrollView(
       controller: scrollController,
-      // FIX: Caching extent keeps items alive longer in the scroll direction,
-      // reducing expensive build/destroy cycles near the visible boundary.
       cacheExtent: 500,
       slivers: [
         _buildAppBar(),
         _buildSearchBar(ref),
         _buildPokemonList(context, ref),
+        // FIX: Loading indicator is a separate sliver — the main list delegate
+        // childCount equals results.length exactly, so no dummy index check
+        // fires on every build of every item.
+        _buildLoadingIndicator(),
         const SliverPadding(padding: EdgeInsets.only(bottom: 100)),
       ],
     );
@@ -293,8 +308,6 @@ class _PokedexTab extends ConsumerWidget {
   }
 
   Widget _buildPokemonList(BuildContext context, WidgetRef ref) {
-    // FIX: Use select() to only rebuild when filteredResults reference changes,
-    // not on every search state property change (e.g. isLoading, query, etc).
     final results = ref.watch(
       pokemonSearchProvider.select((s) => s.filteredResults),
     );
@@ -305,39 +318,37 @@ class _PokedexTab extends ConsumerWidget {
 
     return SliverList(
       delegate: SliverChildBuilderDelegate(
-        (context, index) {
-          if (index >= results.length) {
-            return ValueListenableBuilder<bool>(
-              valueListenable: isLoadingMore,
-              builder: (context, loading, _) => loading
-                  ? const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 20),
-                      child: Center(
-                        child: CircularProgressIndicator(
-                            color: Colors.white54, strokeWidth: 2),
-                      ),
-                    )
-                  : const SizedBox.shrink(),
-            );
-          }
-          // FIX: RepaintBoundary isolates each tile into its own layer.
-          // Shimmer animations and data updates in one tile won't trigger
-          // repaints in neighbouring tiles.
-          return RepaintBoundary(
-            child: PokemonGridItem(
-              pokemon: results[index],
-              onTap: onClearSearch,
-              searchController: searchController,
-              index: index,
-            ),
-          );
-        },
-        childCount: results.length + 1,
-        // FIX: Disabling automatic keep-alives means offscreen tiles can be
-        // garbage-collected. Re-enables fast GC when the list is long.
+        (context, index) => RepaintBoundary(
+          child: PokemonGridItem(
+            pokemon: results[index],
+            onTap: onClearSearch,
+            searchController: searchController,
+            index: index,
+          ),
+        ),
+        // FIX: Exact count — no +1 sentinel index, no dummy widget check
+        // running inside every tile's build call.
+        childCount: results.length,
         addAutomaticKeepAlives: false,
-        // Keep repaint boundaries enabled (default true) — explicit for clarity.
         addRepaintBoundaries: true,
+      ),
+    );
+  }
+
+  // FIX: Loading indicator lives outside the list delegate entirely.
+  Widget _buildLoadingIndicator() {
+    return SliverToBoxAdapter(
+      child: ValueListenableBuilder<bool>(
+        valueListenable: isLoadingMore,
+        builder: (context, loading, _) => loading
+            ? const Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Center(
+                  child: CircularProgressIndicator(
+                      color: Colors.white54, strokeWidth: 2),
+                ),
+              )
+            : const SizedBox.shrink(),
       ),
     );
   }
@@ -409,8 +420,6 @@ class _FavoritesTab extends ConsumerWidget {
               delegate: SliverChildBuilderDelegate(
                 (context, index) {
                   final url = favoritess[index];
-                  // FIX: RepaintBoundary per card — shimmer animations won't
-                  // dirty the whole grid.
                   return RepaintBoundary(
                     child: Consumer(
                       builder: (context, ref, _) {
@@ -424,6 +433,7 @@ class _FavoritesTab extends ConsumerWidget {
                               index: index,
                             );
                           },
+                          // FIX: Uses shared ShimmerScope controller.
                           loading: () => const _FavoriteCardShimmer(),
                           error: (_, __) => const SizedBox.shrink(),
                         );
@@ -456,7 +466,7 @@ class _FavoriteCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final primaryType = pokemon.types?.firstOrNull?.type?.name;
-    const _favoriteTypeColors = {
+    const favoriteTypeColors = {
       'fire': Color(0xFFFF6B35),
       'water': Color(0xFF4A9EFF),
       'grass': Color(0xFF56C45A),
@@ -477,39 +487,37 @@ class _FavoriteCard extends ConsumerWidget {
       'flying': Color(0xFF89AAE3),
     };
 
-    Color typeColor0(String? type) =>
-        _favoriteTypeColors[type?.toLowerCase()] ?? const Color(0xFF7C3AED);
-    final typeColor = typeColor0(primaryType);
+    Color typeColor(String? type) =>
+        favoriteTypeColors[type?.toLowerCase()] ?? const Color(0xFF7C3AED);
+    final color = typeColor(primaryType);
     final dex = '#${(pokemon.id ?? index + 1).toString().padLeft(3, '0')}';
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
-        onTap: () {
-          context.goNamed(
-            'pokemon-details',
-            pathParameters: {'name': pokemon.name?.toLowerCase() ?? 'unknown'},
-            extra: {
-              'id': pokemon.id,
-              'height': pokemon.height ?? 0,
-              'weight': pokemon.weight ?? 0,
-              'abilities': pokemon.abilities?.toList() ?? [],
-              'ability': pokemon.species ?? Ability(name: 'Unknown'),
-              'image1': pokemon.sprites?.frontShiny ?? '',
-              'image2': pokemon.sprites?.backShiny ?? '',
-              'stats': pokemon.stats?.toList() ?? [],
-              'moves': (pokemon.moves?.length ?? 0).toString(),
-              'species': pokemon.species?.name ?? 'Unknown',
-              'pokemonUrlDetails': url,
-            },
-          );
-        },
+        onTap: () => context.goNamed(
+          'pokemon-details',
+          pathParameters: {'name': pokemon.name?.toLowerCase() ?? 'unknown'},
+          extra: {
+            'id': pokemon.id,
+            'height': pokemon.height ?? 0,
+            'weight': pokemon.weight ?? 0,
+            'abilities': pokemon.abilities?.toList() ?? [],
+            'ability': pokemon.species ?? Ability(name: 'Unknown'),
+            'image1': pokemon.sprites?.frontShiny ?? '',
+            'image2': pokemon.sprites?.backShiny ?? '',
+            'stats': pokemon.stats?.toList() ?? [],
+            'moves': (pokemon.moves?.length ?? 0).toString(),
+            'species': pokemon.species?.name ?? 'Unknown',
+            'pokemonUrlDetails': url,
+          },
+        ),
         child: Container(
           decoration: BoxDecoration(
             color: const Color(0xFF16152A),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: typeColor.withOpacity(0.2), width: 1),
+            border: Border.all(color: color.withOpacity(0.2), width: 1),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -520,7 +528,7 @@ class _FavoriteCard extends ConsumerWidget {
                   children: [
                     Container(
                       decoration: BoxDecoration(
-                        color: typeColor.withOpacity(0.08),
+                        color: color.withOpacity(0.08),
                         borderRadius: const BorderRadius.vertical(
                             top: Radius.circular(20)),
                       ),
@@ -569,7 +577,7 @@ class _FavoriteCard extends ConsumerWidget {
                       child: Text(
                         dex,
                         style: TextStyle(
-                          color: typeColor.withOpacity(0.7),
+                          color: color.withOpacity(0.7),
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 0.4,
@@ -605,7 +613,7 @@ class _FavoriteCard extends ConsumerWidget {
                               .take(2)
                               .map((t) => _MiniTypeChip(
                                     label: t.type?.name ?? '',
-                                    color: typeColor0(t.type?.name),
+                                    color: typeColor(t.type?.name),
                                   ))
                               .toList(),
                         ),
@@ -650,39 +658,18 @@ class _MiniTypeChip extends StatelessWidget {
   }
 }
 
-// FIX: _FavoriteCardShimmer now uses a simple repeating AnimationController
-// instead of AnimationController.unbounded. The unbounded variant with
-// repeat(min:, max:) does extra math every tick — a plain looping controller
-// is lighter when many shimmer cards are on screen simultaneously.
-class _FavoriteCardShimmer extends StatefulWidget {
+// ---------------------------------------------------------------------------
+// FavoriteCardShimmer — reads from ShimmerScope, no owned controller.
+// ---------------------------------------------------------------------------
+class _FavoriteCardShimmer extends StatelessWidget {
   const _FavoriteCardShimmer();
 
   @override
-  State<_FavoriteCardShimmer> createState() => _FavoriteCardShimmerState();
-}
-
-class _FavoriteCardShimmerState extends State<_FavoriteCardShimmer>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    // FIX: Plain repeat() instead of unbounded — less overhead per tick.
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
+    // FIX: Was a StatefulWidget with its own AnimationController and ticker.
+    // Now a plain StatelessWidget — zero tickers, reads shared controller.
+    final animation = ShimmerScope.of(context);
+
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFF16152A),
@@ -692,24 +679,12 @@ class _FavoriteCardShimmerState extends State<_FavoriteCardShimmer>
         children: [
           Expanded(
             flex: 5,
-            child: AnimatedBuilder(
-              animation: _controller,
-              builder: (_, __) => Container(
-                decoration: BoxDecoration(
-                  borderRadius:
-                      const BorderRadius.vertical(top: Radius.circular(20)),
-                  gradient: LinearGradient(
-                    colors: const [
-                      Color(0xFF2A2845),
-                      Color(0xFF3A3860),
-                      Color(0xFF2A2845)
-                    ],
-                    stops: const [0.0, 0.5, 1.0],
-                    begin: Alignment(-1.0 + _controller.value * 2, 0),
-                    end: Alignment(1.0 + _controller.value * 2, 0),
-                  ),
-                ),
-              ),
+            child: _ShimmerBox(
+              animation: animation,
+              width: double.infinity,
+              height: double.infinity,
+              radius: 20,
+              topOnly: true,
             ),
           ),
           Expanded(
@@ -719,52 +694,53 @@ class _FavoriteCardShimmerState extends State<_FavoriteCardShimmer>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  AnimatedBuilder(
-                    animation: _controller,
-                    builder: (_, __) => Container(
-                      height: 12,
-                      width: 80,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(6),
-                        gradient: LinearGradient(
-                          colors: const [
-                            Color(0xFF2A2845),
-                            Color(0xFF3A3860),
-                            Color(0xFF2A2845)
-                          ],
-                          stops: const [0.0, 0.5, 1.0],
-                          begin: Alignment(-1.0 + _controller.value * 2, 0),
-                          end: Alignment(1.0 + _controller.value * 2, 0),
-                        ),
-                      ),
-                    ),
-                  ),
+                  _ShimmerBox(animation: animation, width: 80, height: 12),
                   const SizedBox(height: 8),
-                  AnimatedBuilder(
-                    animation: _controller,
-                    builder: (_, __) => Container(
-                      height: 10,
-                      width: 50,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(6),
-                        gradient: LinearGradient(
-                          colors: const [
-                            Color(0xFF2A2845),
-                            Color(0xFF3A3860),
-                            Color(0xFF2A2845)
-                          ],
-                          stops: const [0.0, 0.5, 1.0],
-                          begin: Alignment(-1.0 + _controller.value * 2, 0),
-                          end: Alignment(1.0 + _controller.value * 2, 0),
-                        ),
-                      ),
-                    ),
-                  ),
+                  _ShimmerBox(animation: animation, width: 50, height: 10),
                 ],
               ),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ShimmerBox extends AnimatedWidget {
+  final double width;
+  final double height;
+  final double radius;
+  final bool topOnly;
+
+  const _ShimmerBox({
+    required Animation<double> animation,
+    required this.width,
+    required this.height,
+    this.radius = 6,
+    this.topOnly = false,
+  }) : super(listenable: animation);
+
+  @override
+  Widget build(BuildContext context) {
+    final t = (listenable as Animation<double>).value;
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        borderRadius: topOnly
+            ? BorderRadius.vertical(top: Radius.circular(radius))
+            : BorderRadius.circular(radius),
+        gradient: LinearGradient(
+          colors: const [
+            Color(0xFF2A2845),
+            Color(0xFF3A3860),
+            Color(0xFF2A2845),
+          ],
+          stops: const [0.0, 0.5, 1.0],
+          begin: Alignment(-1.0 + t * 2, 0),
+          end: Alignment(1.0 + t * 2, 0),
+        ),
       ),
     );
   }

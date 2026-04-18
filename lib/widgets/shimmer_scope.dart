@@ -7,7 +7,64 @@ import 'package:poke/providers/pokemon_provider.dart';
 import 'package:poke/providers/searchprov.dart';
 import 'package:poke/utilities/type_colors.dart';
 
-class PokemonListTile extends ConsumerStatefulWidget {
+class ShimmerScope extends StatefulWidget {
+  final Widget child;
+  const ShimmerScope({super.key, required this.child});
+
+  @override
+  State<ShimmerScope> createState() => _ShimmerScopeState();
+
+  static AnimationController of(BuildContext context) {
+    final inherited =
+        context.dependOnInheritedWidgetOfExactType<_InheritedShimmer>();
+    assert(inherited != null, 'No ShimmerScope found in widget tree');
+    return inherited!.controller;
+  }
+}
+
+class _ShimmerScopeState extends State<ShimmerScope>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _InheritedShimmer(
+      controller: _controller,
+      child: widget.child,
+    );
+  }
+}
+
+class _InheritedShimmer extends InheritedWidget {
+  final AnimationController controller;
+  const _InheritedShimmer({
+    required this.controller,
+    required super.child,
+  });
+
+  @override
+  bool updateShouldNotify(_InheritedShimmer old) => false;
+}
+
+// ---------------------------------------------------------------------------
+// PokemonListTile
+// ---------------------------------------------------------------------------
+class PokemonListTile extends ConsumerWidget {
   const PokemonListTile({
     super.key,
     required this.pokemonUrl,
@@ -24,52 +81,62 @@ class PokemonListTile extends ConsumerStatefulWidget {
   final VoidCallback? onTap;
 
   @override
-  ConsumerState<PokemonListTile> createState() => _PokemonListTileState();
-}
-
-class _PokemonListTileState extends ConsumerState<PokemonListTile>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _shimmerController;
-
-  @override
-  void initState() {
-    super.initState();
-
-    _shimmerController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _shimmerController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    // FIX: Use select() to subscribe only to whether THIS url is a favorite.
-    // Without select(), any change to the favorites list (adding/removing any
-    // pokemon) would rebuild every visible PokemonListTile. With select(),
-    // only the tile whose url changed will rebuild.
+  Widget build(BuildContext context, WidgetRef ref) {
+    // FIX: select() — only rebuilds when THIS url's favorite status changes,
+    // not on every add/remove anywhere in the favorites list.
     final isFavorite = ref.watch(
-      favorites.select((f) => f.contains(widget.pokemonUrl)),
+      favorites.select((f) => f.contains(pokemonUrl)),
     );
 
-    return ref.watch(pokemonData(widget.pokemonUrl)).when(
+    return ref.watch(pokemonData(pokemonUrl)).when(
           data: (pokemon) => pokemon == null
               ? _buildErrorTile()
-              : _buildCard(pokemon, isFavorite),
+              : _PokemonCard(
+                  pokemon: pokemon,
+                  pokemonUrl: pokemonUrl,
+                  isFavorite: isFavorite,
+                  index: index,
+                  controller: controller,
+                  onTap: onTap,
+                ),
           error: (_, __) => _buildErrorTile(),
-          loading: _buildShimmer,
+          // FIX: No longer creates an AnimationController here —
+          // pulls from the shared ShimmerScope instead.
+          loading: () => _PokemonShimmer(index: index),
         );
   }
 
-  Widget _buildCard(Pokemon pokemon, bool isFavorite) {
+  Widget _buildErrorTile() => const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+        child: SizedBox(height: 90),
+      );
+}
+
+// ---------------------------------------------------------------------------
+// Card — separated so ConsumerWidget only rebuilds the card subtree.
+// ---------------------------------------------------------------------------
+class _PokemonCard extends ConsumerWidget {
+  final Pokemon pokemon;
+  final String pokemonUrl;
+  final bool isFavorite;
+  final int index;
+  final TextEditingController controller;
+  final VoidCallback? onTap;
+
+  const _PokemonCard({
+    required this.pokemon,
+    required this.pokemonUrl,
+    required this.isFavorite,
+    required this.index,
+    required this.controller,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
     final primaryType = pokemon.types?.firstOrNull?.type?.name;
     final color = pokemonTypeColor(primaryType);
-    final dex = '#${(widget.index + 1).toString().padLeft(3, '0')}';
+    final dex = '#${(index + 1).toString().padLeft(3, '0')}';
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
@@ -77,7 +144,7 @@ class _PokemonListTileState extends ConsumerState<PokemonListTile>
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(20),
-          onTap: () => _navigateToDetails(pokemon),
+          onTap: () => _navigateToDetails(context, ref, pokemon),
           child: Container(
             height: 90,
             decoration: BoxDecoration(
@@ -99,7 +166,7 @@ class _PokemonListTileState extends ConsumerState<PokemonListTile>
                 const SizedBox(width: 14),
                 // Sprite
                 Hero(
-                  tag: widget.pokemonUrl,
+                  tag: pokemonUrl,
                   child: SizedBox(
                     width: 64,
                     height: 64,
@@ -155,12 +222,11 @@ class _PokemonListTileState extends ConsumerState<PokemonListTile>
                     ],
                   ),
                 ),
-                // FIX: Wrap favorite icon in its own RepaintBoundary so that
-                // toggling the heart only repaints this small icon area, not
-                // the entire tile row (sprite, name, type chips, etc).
+                // FIX: RepaintBoundary isolates the heart icon repaint from
+                // the rest of the tile (sprite, name, chips stay untouched).
                 RepaintBoundary(
                   child: GestureDetector(
-                    onTap: _toggleFavorite,
+                    onTap: () => _toggleFavorite(ref),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       child: Icon(
@@ -182,7 +248,55 @@ class _PokemonListTileState extends ConsumerState<PokemonListTile>
     );
   }
 
-  Widget _buildShimmer() {
+  String _capitalize(String s) =>
+      s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
+
+  void _toggleFavorite(WidgetRef ref) {
+    final notifier = ref.read(favorites.notifier);
+    if (ref.read(favorites).contains(pokemonUrl)) {
+      notifier.removeFavorite(pokemonUrl);
+    } else {
+      notifier.addFavorite(pokemonUrl);
+    }
+  }
+
+  void _navigateToDetails(
+      BuildContext context, WidgetRef ref, Pokemon pokemon) {
+    onTap?.call();
+    ref.read(pokemonSearchProvider.notifier).clearSearch();
+    controller.clear();
+    context.goNamed(
+      'pokemon-details',
+      pathParameters: {'name': pokemon.name?.toLowerCase() ?? 'unknown'},
+      extra: {
+        'id': pokemon.id,
+        'height': pokemon.height ?? 0,
+        'weight': pokemon.weight ?? 0,
+        'abilities': pokemon.abilities?.toList() ?? [],
+        'ability': pokemon.species ?? Ability(name: 'Unknown'),
+        'image1': pokemon.sprites?.frontShiny ?? '',
+        'image2': pokemon.sprites?.backShiny ?? '',
+        'stats': pokemon.stats?.toList() ?? [],
+        'moves': (pokemon.moves?.length ?? 0).toString(),
+        'species': pokemon.species?.name ?? 'Unknown',
+        'pokemonUrlDetails': pokemonUrl,
+      },
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Shimmer — reads from ShimmerScope, no owned AnimationController.
+// ---------------------------------------------------------------------------
+class _PokemonShimmer extends StatelessWidget {
+  final int index;
+  const _PokemonShimmer({required this.index});
+
+  @override
+  Widget build(BuildContext context) {
+    // FIX: Single shared controller from ShimmerScope — zero extra tickers.
+    final animation = ShimmerScope.of(context);
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
       child: Container(
@@ -202,37 +316,19 @@ class _PokemonListTileState extends ConsumerState<PokemonListTile>
               ),
             ),
             const SizedBox(width: 14),
-            AnimatedBuilder(
-              animation: _shimmerController,
-              builder: (_, __) => Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  gradient: LinearGradient(
-                    colors: const [
-                      Color(0xFF2A2845),
-                      Color(0xFF3A3860),
-                      Color(0xFF2A2845)
-                    ],
-                    stops: const [0.0, 0.5, 1.0],
-                    begin: Alignment(-1.0 + _shimmerController.value * 2, 0),
-                    end: Alignment(1.0 + _shimmerController.value * 2, 0),
-                  ),
-                ),
-              ),
-            ),
+            _ShimmerBox(
+                animation: animation, width: 64, height: 64, radius: 12),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _shimmerBox(60, 10),
+                  _ShimmerBox(animation: animation, width: 60, height: 10),
                   const SizedBox(height: 6),
-                  _shimmerBox(120, 14),
+                  _ShimmerBox(animation: animation, width: 120, height: 14),
                   const SizedBox(height: 8),
-                  _shimmerBox(80, 10),
+                  _ShimmerBox(animation: animation, width: 80, height: 10),
                 ],
               ),
             ),
@@ -241,65 +337,39 @@ class _PokemonListTileState extends ConsumerState<PokemonListTile>
       ),
     );
   }
+}
 
-  Widget _shimmerBox(double w, double h) => AnimatedBuilder(
-        animation: _shimmerController,
-        builder: (_, __) => Container(
-          width: w,
-          height: h,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(6),
-            gradient: LinearGradient(
-              colors: const [
-                Color(0xFF2A2845),
-                Color(0xFF3A3860),
-                Color(0xFF2A2845)
-              ],
-              stops: const [0.0, 0.5, 1.0],
-              begin: Alignment(-1.0 + _shimmerController.value * 2, 0),
-              end: Alignment(1.0 + _shimmerController.value * 2, 0),
-            ),
-          ),
+class _ShimmerBox extends AnimatedWidget {
+  final double width;
+  final double height;
+  final double radius;
+
+  const _ShimmerBox({
+    required Animation<double> animation,
+    required this.width,
+    required this.height,
+    this.radius = 6,
+  }) : super(listenable: animation);
+
+  @override
+  Widget build(BuildContext context) {
+    final t = (listenable as Animation<double>).value;
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(radius),
+        gradient: LinearGradient(
+          colors: const [
+            Color(0xFF2A2845),
+            Color(0xFF3A3860),
+            Color(0xFF2A2845),
+          ],
+          stops: const [0.0, 0.5, 1.0],
+          begin: Alignment(-1.0 + t * 2, 0),
+          end: Alignment(1.0 + t * 2, 0),
         ),
-      );
-
-  Widget _buildErrorTile() => const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 5),
-        child: SizedBox(height: 90),
-      );
-
-  String _capitalize(String s) =>
-      s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
-
-  void _toggleFavorite() {
-    final notifier = ref.read(favorites.notifier);
-    if (ref.read(favorites).contains(widget.pokemonUrl)) {
-      notifier.removeFavorite(widget.pokemonUrl);
-    } else {
-      notifier.addFavorite(widget.pokemonUrl);
-    }
-  }
-
-  void _navigateToDetails(Pokemon pokemon) {
-    widget.onTap?.call();
-    ref.read(pokemonSearchProvider.notifier).clearSearch();
-    widget.controller.clear();
-    context.goNamed(
-      'pokemon-details',
-      pathParameters: {'name': pokemon.name?.toLowerCase() ?? 'unknown'},
-      extra: {
-        'id': pokemon.id,
-        'height': pokemon.height ?? 0,
-        'weight': pokemon.weight ?? 0,
-        'abilities': pokemon.abilities?.toList() ?? [],
-        'ability': pokemon.species ?? Ability(name: 'Unknown'),
-        'image1': pokemon.sprites?.frontShiny ?? '',
-        'image2': pokemon.sprites?.backShiny ?? '',
-        'stats': pokemon.stats?.toList() ?? [],
-        'moves': (pokemon.moves?.length ?? 0).toString(),
-        'species': pokemon.species?.name ?? 'Unknown',
-        'pokemonUrlDetails': widget.pokemonUrl,
-      },
+      ),
     );
   }
 }

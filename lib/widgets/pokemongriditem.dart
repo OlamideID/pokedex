@@ -18,10 +18,11 @@ class PokemonGridItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PokemonCard(
-      pokemon: pokemon,
+    return PokemonListTile(
       onTap: onTap,
-      searchController: searchController,
+      controller: searchController,
+      pokemonUrl: pokemon.url!,
+      name: pokemon.name!,
       index: index,
     );
   }
